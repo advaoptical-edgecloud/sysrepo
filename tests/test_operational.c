@@ -46,7 +46,7 @@ setup(void **state)
 {
     struct state *st;
     uint32_t conn_count;
-    const char *act_feat = "advanced-testing";
+    const char *act_feats[] = {"advanced-testing", NULL};
 
     st = malloc(sizeof *st);
     if (!st) {
@@ -61,40 +61,40 @@ setup(void **state)
         return 1;
     }
 
-    if (sr_install_module(st->conn, TESTS_DIR "/files/test.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/test.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-interfaces.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-interfaces.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/iana-if-type.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/iana-if-type.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-if-aug.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-if-aug.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-microwave-radio-link.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-microwave-radio-link.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/mixed-config.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/mixed-config.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/act.yang", TESTS_DIR "/files", &act_feat, 1) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/act.yang", TESTS_DIR "/files", act_feats) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/act2.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/act2.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/act3.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/act3.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/defaults.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/defaults.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ops-ref.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ops-ref.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ops.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ops.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
     sr_disconnect(st->conn);
@@ -268,22 +268,25 @@ test_yang_lib(void **state)
 #if SR_YANGLIB_REVISION == 2019-01-04
     assert_non_null(data);
     assert_string_equal(data->schema->name, "yang-library");
-    assert_string_equal(data->child->schema->name, "module-set");
-    assert_string_equal(data->child->next->schema->name, "schema");
-    assert_string_equal(data->child->next->next->schema->name, "content-id");
-    assert_string_equal(data->child->next->next->next->schema->name, "datastore");
+    assert_string_equal(lyd_child(data)->schema->name, "module-set");
+    assert_string_equal(lyd_child(data)->next->schema->name, "schema");
+    assert_string_equal(lyd_child(data)->next->next->schema->name, "datastore");
+    assert_string_equal(lyd_child(data)->next->next->next->schema->name, "datastore");
+    assert_string_equal(lyd_child(data)->next->next->next->next->schema->name, "datastore");
+    assert_string_equal(lyd_child(data)->next->next->next->next->next->schema->name, "datastore");
+    assert_string_equal(lyd_child(data)->next->next->next->next->next->next->schema->name, "content-id");
     assert_string_equal(data->next->schema->name, "modules-state");
 #else
     assert_non_null(data);
     assert_string_equal(data->schema->name, "modules-state");
-    assert_string_equal(data->child->prev->schema->name, "module-set-id");
+    assert_string_equal(lyd_child(data)->prev->schema->name, "module-set-id");
 #endif
 
     /* they must be valid */
-    ret = lyd_validate_modules(&data, (const struct lys_module **)&data->schema->module, 1, 0);
+    ret = lyd_validate_module(&data, data->schema->module, 0, NULL);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* subscribe as dummy state data provider, they should get deleted */
 #if SR_YANGLIB_REVISION == 2019-01-04
@@ -302,12 +305,12 @@ test_yang_lib(void **state)
 #if SR_YANGLIB_REVISION == 2019-01-04
     assert_non_null(data);
     assert_string_equal(data->schema->name, "modules-state");
-    assert_int_equal(data->dflt, 0);
+    assert_false(data->flags & LYD_DEFAULT);
     assert_null(data->next);
 #else
     assert_null(data);
 #endif
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* cleanup */
     sr_session_switch_ds(st->sess, SR_DS_RUNNING);
@@ -378,9 +381,9 @@ test_sr_mon(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     /* check their content */
-    ret = lyd_print_mem(&str1, data, LYD_XML, 0);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 = "<sysrepo-state xmlns=\"http://www.sysrepo.org/yang/sysrepo-monitoring\">"
         "<module>"
@@ -421,6 +424,9 @@ test_sr_mon(void **state)
         "</module>"
         "<module>"
             "<name>ietf-microwave-radio-link</name>"
+        "</module>"
+        "<module>"
+            "<name>ietf-interface-protection</name>"
         "</module>"
         "<module>"
             "<name>mixed-config</name>"
@@ -503,9 +509,9 @@ test_sr_mon(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     /* check their content */
-    ret = lyd_print_mem(&str1, data, LYD_XML, 0);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2= "<sysrepo-state xmlns=\"http://www.sysrepo.org/yang/sysrepo-monitoring\">"
         "<module>"
@@ -727,54 +733,6 @@ enabled_change_cb(sr_session_ctx_t *session, const char *module_name, const char
 
         sr_free_val(new_val);
 
-        /* 6th change */
-        ret = sr_get_change_next(session, iter, &op, &old_val, &new_val);
-        assert_int_equal(ret, SR_ERR_OK);
-
-        assert_int_equal(op, SR_OP_CREATED);
-        assert_null(old_val);
-        assert_non_null(new_val);
-        assert_string_equal(new_val->xpath, "/ietf-interfaces:interfaces/interface[name='eth128']/ietf-if-aug:c1");
-        assert_int_equal(new_val->dflt, 1);
-
-        sr_free_val(new_val);
-
-        /* 7th change */
-        ret = sr_get_change_next(session, iter, &op, &old_val, &new_val);
-        assert_int_equal(ret, SR_ERR_OK);
-
-        assert_int_equal(op, SR_OP_CREATED);
-        assert_null(old_val);
-        assert_non_null(new_val);
-        assert_string_equal(new_val->xpath, "/ietf-interfaces:interfaces/interface[name='eth128']/ietf-microwave-radio-link:capabilities");
-        assert_int_equal(new_val->dflt, 1);
-
-        sr_free_val(new_val);
-
-        /* 8th change */
-        ret = sr_get_change_next(session, iter, &op, &old_val, &new_val);
-        assert_int_equal(ret, SR_ERR_OK);
-
-        assert_int_equal(op, SR_OP_CREATED);
-        assert_null(old_val);
-        assert_non_null(new_val);
-        assert_string_equal(new_val->xpath, "/ietf-interfaces:interfaces/interface[name='eth128']/ietf-microwave-radio-link:error-performance-statistics");
-        assert_int_equal(new_val->dflt, 1);
-
-        sr_free_val(new_val);
-
-        /* 9th change */
-        ret = sr_get_change_next(session, iter, &op, &old_val, &new_val);
-        assert_int_equal(ret, SR_ERR_OK);
-
-        assert_int_equal(op, SR_OP_CREATED);
-        assert_null(old_val);
-        assert_non_null(new_val);
-        assert_string_equal(new_val->xpath, "/ietf-interfaces:interfaces/interface[name='eth128']/ietf-microwave-radio-link:radio-performance-statistics");
-        assert_int_equal(new_val->dflt, 1);
-
-        sr_free_val(new_val);
-
         /* no more changes */
         ret = sr_get_change_next(session, iter, &op, &old_val, &new_val);
         assert_int_equal(ret, SR_ERR_NOT_FOUND);
@@ -847,8 +805,8 @@ test_enabled_partial(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_non_null(data);
-    assert_int_equal(data->dflt, 1);
-    lyd_free_withsiblings(data);
+    assert_true(data->flags & LYD_DEFAULT);
+    lyd_free_all(data);
 
     /* subscribe to one specific interface and also expect to be notified */
     ret = sr_session_switch_ds(st->sess, SR_DS_RUNNING);
@@ -870,16 +828,16 @@ test_enabled_partial(void **state)
     ret = sr_session_switch_ds(st->sess, SR_DS_RUNNING);
     assert_int_equal(ret, SR_ERR_OK);
 
-    lyd_print_mem(&str, data, LYD_XML, LYP_WITHSIBLINGS);
-    lyd_free(data);
+    lyd_print_mem(&str, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
+    lyd_free_tree(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<interface>"
             "<name>eth128</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
-            "<enabled or:origin=\"default\">true</enabled>"
+            "<enabled or:origin=\"or:default\">true</enabled>"
         "</interface>"
     "</interfaces>";
 
@@ -904,8 +862,8 @@ test_enabled_partial(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_non_null(data);
-    assert_int_equal(data->dflt, 1);
-    lyd_free_withsiblings(data);
+    assert_true(data->flags & LYD_DEFAULT);
+    lyd_free_all(data);
 
     /* unsusbcribe */
     sr_unsubscribe(subscr);
@@ -917,7 +875,6 @@ simple_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *x
         uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
     const struct ly_ctx *ly_ctx;
-    struct lyd_node *node;
 
     assert_string_equal(request_xpath, "/ietf-interfaces:*");
     assert_int_equal(sr_session_get_nc_id(session), 64);
@@ -931,18 +888,12 @@ simple_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *x
     assert_non_null(parent);
     assert_null(*parent);
 
-    node = lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces-state/interface[name='eth5']/type",
-            "iana-if-type:ethernetCsmacd", 0, 0);
-    assert_non_null(node);
-    *parent = node;
-
-    node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth5']/oper-status",
-            "testing", 0, 0);
-    assert_non_null(node);
-
-    node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth5']/statistics/discontinuity-time",
-            "2000-01-01T00:00:00Z", 0, 0);
-    assert_non_null(node);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces-state/interface[name='eth5']/type",
+            "iana-if-type:ethernetCsmacd", 0, parent));
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth5']/"
+            "oper-status", "testing", 0, NULL));
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth5']/"
+            "statistics/discontinuity-time", "2000-01-01T00:00:00Z", 0, NULL));
 
     return SR_ERR_OK;
 }
@@ -975,18 +926,18 @@ test_simple(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<interface>"
             "<name>eth1</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
-            "<enabled or:origin=\"default\">true</enabled>"
+            "<enabled or:origin=\"or:default\">true</enabled>"
         "</interface>"
     "</interfaces>";
 
@@ -1002,22 +953,22 @@ test_simple(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<interface>"
             "<name>eth1</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
-            "<enabled or:origin=\"default\">true</enabled>"
+            "<enabled or:origin=\"or:default\">true</enabled>"
         "</interface>"
     "</interfaces>"
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<interface>"
             "<name>eth5</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
@@ -1103,9 +1054,8 @@ config_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *x
     assert_non_null(parent);
     assert_null(*parent);
 
-    *parent = lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces/interface[name='eth5']/type",
-            "iana-if-type:ethernetCsmacd", 0, 0);
-    assert_non_null(*parent);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces/interface[name='eth5']/type",
+            "iana-if-type:ethernetCsmacd", 0, parent));
 
     return SR_ERR_OK;
 }
@@ -1144,16 +1094,16 @@ test_config(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
-    assert_int_equal(data->dflt, 1);
+    assert_true(data->next->flags & LYD_DEFAULT);
 
-    ret = lyd_print_mem(&str1, data->next, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<interface>"
             "<name>eth5</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
@@ -1171,8 +1121,6 @@ static int
 list_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, const char *request_xpath,
         uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
-    struct lyd_node *node;
-
     (void)session;
     (void)request_id;
     (void)private_data;
@@ -1183,13 +1131,11 @@ list_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *xpa
     assert_non_null(*parent);
 
     if (!strcmp(xpath, "/ietf-interfaces:interfaces/interface[name='eth2']")) {
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces/interface[name='eth2']/type",
-                "iana-if-type:ethernetCsmacd", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces/interface[name='eth2']/type",
+                "iana-if-type:ethernetCsmacd", 0, NULL));
     } else if (!strcmp(xpath, "/ietf-interfaces:interfaces/interface[name='eth3']")) {
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces/interface[name='eth3']/type",
-                "iana-if-type:ethernetCsmacd", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces/interface[name='eth3']/type",
+                "iana-if-type:ethernetCsmacd", 0, NULL));
     } else {
         fail();
     }
@@ -1231,26 +1177,26 @@ test_list(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
-    assert_int_equal(data->next->dflt, 1);
+    assert_true(data->next->flags & LYD_DEFAULT);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<interface>"
             "<name>eth1</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
-            "<enabled or:origin=\"default\">true</enabled>"
+            "<enabled or:origin=\"or:default\">true</enabled>"
         "</interface>"
-        "<interface or:origin=\"unknown\">"
+        "<interface or:origin=\"or:unknown\">"
             "<name>eth2</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
         "</interface>"
-        "<interface or:origin=\"unknown\">"
+        "<interface or:origin=\"or:unknown\">"
             "<name>eth3</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
         "</interface>"
@@ -1268,7 +1214,6 @@ nested_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *x
         uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
     const struct ly_ctx *ly_ctx;
-    struct lyd_node *node;
 
     (void)request_id;
     (void)private_data;
@@ -1282,36 +1227,22 @@ nested_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *x
     if (!strcmp(xpath, "/ietf-interfaces:interfaces-state/interface[name='eth2']/phys-address")) {
         assert_non_null(*parent);
 
-        node = lyd_new_path(*parent, NULL, "phys-address",
-                "01:23:45:67:89:ab", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "phys-address", "01:23:45:67:89:ab", 0, NULL));
     } else if (!strcmp(xpath, "/ietf-interfaces:interfaces-state")) {
         assert_null(*parent);
 
-        node = lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces-state/interface[name='eth2']/type",
-                "iana-if-type:ethernetCsmacd", 0, 0);
-        assert_non_null(node);
-        *parent = node;
-
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth2']/oper-status",
-                "testing", 0, 0);
-        assert_non_null(node);
-
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth2']/statistics/discontinuity-time",
-                "2000-01-01T00:00:00Z", 0, 0);
-        assert_non_null(node);
-
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth3']/type",
-                "iana-if-type:ethernetCsmacd", 0, 0);
-        assert_non_null(node);
-
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth3']/oper-status",
-                "dormant", 0, 0);
-        assert_non_null(node);
-
-        node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth3']/statistics/discontinuity-time",
-                "2005-01-01T00:00:00Z", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces-state/interface[name='eth2']/type",
+                "iana-if-type:ethernetCsmacd", 0, parent));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth2']/"
+                "oper-status", "testing", 0, NULL));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth2']/"
+                "statistics/discontinuity-time", "2000-01-01T00:00:00Z", 0, NULL));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth3']/"
+                "type", "iana-if-type:ethernetCsmacd", 0, NULL));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth3']/"
+                "oper-status", "dormant", 0, NULL));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth3']/"
+                "statistics/discontinuity-time", "2005-01-01T00:00:00Z", 0, NULL));
     } else {
         fail();
     }
@@ -1358,30 +1289,30 @@ test_nested(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<interface>"
             "<name>eth1</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
-            "<enabled or:origin=\"default\">true</enabled>"
+            "<enabled or:origin=\"or:default\">true</enabled>"
         "</interface>"
     "</interfaces>"
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<interface>"
             "<name>eth2</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
             "<oper-status>testing</oper-status>"
+            "<phys-address>01:23:45:67:89:ab</phys-address>"
             "<statistics>"
                 "<discontinuity-time>2000-01-01T00:00:00Z</discontinuity-time>"
             "</statistics>"
-            "<phys-address>01:23:45:67:89:ab</phys-address>"
         "</interface>"
         "<interface>"
             "<name>eth3</name>"
@@ -1416,8 +1347,7 @@ invalid_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *
     assert_string_equal(module_name, "test");
     assert_non_null(parent);
 
-    *parent = lyd_new_path(NULL, ly_ctx, "/test:test-leafref", "25", 0, 0);
-    assert_non_null(*parent);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/test:test-leafref", "25", 0, parent));
 
     return SR_ERR_OK;
 }
@@ -1453,14 +1383,16 @@ test_invalid(void **state)
     ret = sr_get_data(st->sess, "/test:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
-    "<test-leaf xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">25</test-leaf>"
-    "<test-leafref xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">25</test-leafref>";
+    "<test-leaf xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" "
+        "or:origin=\"or:intended\">25</test-leaf>"
+    "<test-leafref xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" "
+        "or:origin=\"or:unknown\">25</test-leafref>";
 
     assert_string_equal(str1, str2);
     free(str1);
@@ -1474,7 +1406,6 @@ mixed_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *xp
         uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
     const struct ly_ctx *ly_ctx;
-    struct lyd_node *node;
 
     (void)request_id;
     (void)private_data;
@@ -1488,22 +1419,16 @@ mixed_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *xp
     assert_null(*parent);
 
     /* config */
-    *parent = lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces/interface[name='eth10']/type",
-            "iana-if-type:ethernetCsmacd", 0, 0);
-    assert_non_null(*parent);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/ietf-interfaces:interfaces/interface[name='eth10']/type",
+            "iana-if-type:ethernetCsmacd", 0, parent));
 
     /* state */
-    node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth11']/type",
-            "iana-if-type:ethernetCsmacd", 0, 0);
-    assert_non_null(node);
-
-    node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth11']/oper-status",
-            "down", 0, 0);
-    assert_non_null(node);
-
-    node = lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth11']/statistics/discontinuity-time",
-            "2000-01-01T00:00:00Z", 0, 0);
-    assert_non_null(node);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth11']/type",
+            "iana-if-type:ethernetCsmacd", 0, NULL));
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth11']/"
+            "oper-status", "down", 0, NULL));
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/ietf-interfaces:interfaces-state/interface[name='eth11']/"
+            "statistics/discontinuity-time", "2000-01-01T00:00:00Z", 0, NULL));
 
     return SR_ERR_OK;
 }
@@ -1541,21 +1466,21 @@ test_mixed(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<interface>"
             "<name>eth10</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
         "</interface>"
     "</interfaces>"
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<interface>"
             "<name>eth11</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
@@ -1610,14 +1535,14 @@ test_xpath_check(void **state)
     st->cb_called = 0;
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
     assert_int_equal(st->cb_called, 0);
 
     /* read all from operational, callback called */
     st->cb_called = 0;
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
     assert_int_equal(st->cb_called, 1);
 
     sr_unsubscribe(subscr);
@@ -1632,14 +1557,14 @@ test_xpath_check(void **state)
     st->cb_called = 0;
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces-state/interface[name='eth1']", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
     assert_int_equal(st->cb_called, 0);
 
     /* read all from operational, callback called */
     st->cb_called = 0;
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces-state/interface[name='eth0']/type", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
     assert_int_equal(st->cb_called, 1);
 
     sr_unsubscribe(subscr);
@@ -1652,7 +1577,6 @@ state_only_oper_cb(sr_session_ctx_t *session, const char *module_name, const cha
 {
     struct state *st = (struct state *)private_data;
     const struct ly_ctx *ly_ctx;
-    struct lyd_node *node;
 
     (void)request_xpath;
     (void)request_id;
@@ -1665,23 +1589,22 @@ state_only_oper_cb(sr_session_ctx_t *session, const char *module_name, const cha
         assert_non_null(parent);
         assert_null(*parent);
 
-        *parent = lyd_new_path(NULL, ly_ctx, "/mixed-config:test-state/test-case[name='one']/result", "101", 0, 0);
-        assert_non_null(*parent);
-        node = lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='one']/x", "0.5000", 0, 0);
-        assert_non_null(node);
-        node = lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='one']/y", "-0.5000", 0, 0);
-        assert_non_null(node);
-        node = lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='one']/z", "-0.2500", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/mixed-config:test-state/test-case[name='one']/result",
+                "101", 0, parent));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='one']/x",
+                "0.5000", 0, NULL));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='one']/y",
+                "-0.5000", 0, NULL));
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='one']/z",
+                "-0.2500", 0, NULL));
 
-        node = lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='two']", NULL, 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "/mixed-config:test-state/test-case[name='two']", NULL,
+                0, NULL));
     } else if (!strcmp(xpath, "/mixed-config:test-state/test-case/result")) {
         assert_non_null(parent);
         assert_non_null(*parent);
 
-        node = lyd_new_path(*parent, NULL, "result", "100", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "result", "100", 0, NULL));
     } else {
         fail();
     }
@@ -1714,13 +1637,13 @@ test_state_only(void **state)
     assert_int_equal(ret, SR_ERR_OK);
     assert_int_equal(st->cb_called, 1);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
-    "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+    "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<test-case>"
             "<name>one</name>"
             "<result>101</result>"
@@ -1762,16 +1685,16 @@ test_state_only(void **state)
     assert_int_equal(ret, SR_ERR_OK);
     assert_int_equal(st->cb_called, 1);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
-    "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+    "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<test-case>"
             "<name>three</name>"
-            "<result or:origin=\"unknown\">100</result>"
+            "<result or:origin=\"or:unknown\">100</result>"
         "</test-case>"
     "</test-state>";
 
@@ -1798,16 +1721,16 @@ test_state_only(void **state)
     assert_int_equal(ret, SR_ERR_OK);
     assert_int_equal(st->cb_called, 1);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
-    "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
+    "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:intended\">"
         "<test-case>"
             "<name>four</name>"
-            "<result or:origin=\"unknown\">100</result>"
+            "<result or:origin=\"or:unknown\">100</result>"
         "</test-case>"
     "</test-state>";
 
@@ -1851,14 +1774,14 @@ test_config_only(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_NO_STATE | SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
-        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
+        " xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"or:unknown\">"
         "<interface>"
             "<name>eth10</name>"
             "<type xmlns:ianaift=\"urn:ietf:params:xml:ns:yang:iana-if-type\">ianaift:ethernetCsmacd</type>"
@@ -1900,10 +1823,10 @@ test_conn_owner1(void **state)
     ret = sr_get_data(sess, "/ietf-interfaces:interfaces-state", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -1926,9 +1849,9 @@ test_conn_owner1(void **state)
 
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces-state", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    assert_int_equal(data->dflt, 1);
+    assert_true(data->flags & LYD_DEFAULT);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 }
 
 /* TEST */
@@ -1966,10 +1889,10 @@ test_conn_owner2(void **state)
     ret = sr_get_data(sess, "/ietf-interfaces:interfaces-state", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -1999,10 +1922,10 @@ test_conn_owner2(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces-state", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\">"
@@ -2027,10 +1950,10 @@ test_conn_owner2(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces-state", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2170,10 +2093,10 @@ test_stored_state(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces-state", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2220,10 +2143,10 @@ test_stored_state_list(void **state)
     ret = sr_get_data(st->sess, "/mixed-config:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<test-state xmlns=\"urn:sysrepo:mixed-config\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
@@ -2285,10 +2208,10 @@ test_stored_config(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2317,8 +2240,8 @@ test_stored_config(void **state)
     assert_int_equal(ret, SR_ERR_OK);
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    assert_int_equal(data->dflt, 1);
-    lyd_free_withsiblings(data);
+    assert_true(data->flags & LYD_DEFAULT);
+    lyd_free_all(data);
 
     /* it should not be possible to delete a non-existing node just like in conventional datastores */
     ret = sr_delete_item(st->sess, "/ietf-interfaces:interfaces/interface[name='eth1']", SR_EDIT_STRICT);
@@ -2370,10 +2293,10 @@ test_stored_np_cont1(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2406,10 +2329,10 @@ test_stored_np_cont1(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2467,10 +2390,10 @@ test_stored_np_cont2(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2497,8 +2420,8 @@ test_stored_np_cont2(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    assert_int_equal(data->dflt, 1);
-    lyd_free_withsiblings(data);
+    assert_true(data->flags & LYD_DEFAULT);
+    lyd_free_all(data);
 }
 
 /* TEST */
@@ -2531,9 +2454,9 @@ test_stored_diff_merge_leaf(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2561,9 +2484,9 @@ test_stored_diff_merge_leaf(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\">"
@@ -2586,9 +2509,9 @@ test_stored_diff_merge_leaf(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2639,9 +2562,9 @@ test_stored_diff_merge_replace(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2656,11 +2579,10 @@ test_stored_diff_merge_replace(void **state)
     free(str1);
 
     /* set some other operational data to be merged */
-    data = lyd_new_path(NULL, sr_get_context(st->conn), "/ietf-interfaces:interfaces/interface[name='eth5']/type",
-            "iana-if-type:ethernetCsmacd", 0, 0);
-    assert_non_null(data);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, sr_get_context(st->conn), "/ietf-interfaces:interfaces/"
+            "interface[name='eth5']/type", "iana-if-type:ethernetCsmacd", 0, &data));
     ret = sr_edit_batch(st->sess, data, "replace");
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
     assert_int_equal(ret, SR_ERR_OK);
     ret = sr_apply_changes(st->sess, 0, 0);
     assert_int_equal(ret, SR_ERR_OK);
@@ -2668,9 +2590,9 @@ test_stored_diff_merge_replace(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\">"
@@ -2691,9 +2613,9 @@ test_stored_diff_merge_replace(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/ietf-interfaces:interfaces", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\""
@@ -2751,9 +2673,9 @@ test_stored_diff_merge_userord(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/test:cont", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<cont xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
@@ -2784,9 +2706,9 @@ test_stored_diff_merge_userord(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/test:cont", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<cont xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
@@ -2815,9 +2737,9 @@ test_stored_diff_merge_userord(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/test:cont", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<cont xmlns=\"urn:test\">"
@@ -2846,9 +2768,9 @@ test_stored_diff_merge_userord(void **state)
     /* read the data */
     ret = sr_get_data(st->sess, "/test:cont", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<cont xmlns=\"urn:test\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
@@ -3064,12 +2986,12 @@ test_change_cb_stored(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
-    assert_int_equal(data->next->dflt, 1);
+    assert_true(data->next->flags & LYD_DEFAULT);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\""
@@ -3105,9 +3027,9 @@ test_default_when(void **state)
     /* read the operational data */
     ret = sr_get_data(st->sess, "/act:*", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS | LYP_KEEPEMPTYCONT | LYP_WD_ALL);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_KEEPEMPTYCONT | LYD_PRINT_WD_ALL);
     assert_int_equal(ret, 0);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<basics xmlns=\"urn:act\">"
@@ -3126,7 +3048,6 @@ nested_default_oper_cb(sr_session_ctx_t *session, const char *module_name, const
         uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
     const struct ly_ctx *ly_ctx;
-    struct lyd_node *node;
 
     (void)request_id;
     (void)private_data;
@@ -3140,14 +3061,11 @@ nested_default_oper_cb(sr_session_ctx_t *session, const char *module_name, const
     if (!strcmp(xpath, "/defaults:l1/cont1/ll")) {
         assert_non_null(*parent);
 
-        node = lyd_new_path(*parent, NULL, "ll", "valuee", 0, 0);
-        assert_non_null(node);
+        assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "ll", "valuee", 0, NULL));
     } else if (!strcmp(xpath, "/defaults:l1")) {
         assert_null(*parent);
 
-        node = lyd_new_path(NULL, ly_ctx, "/defaults:l1[k='val']/cont1/cont2/dflt1", "64", 0, 0);
-        assert_non_null(node);
-        *parent = node;
+        assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/defaults:l1[k='val']/cont1/cont2/dflt1", "64", 0, parent));
     } else {
         fail();
     }
@@ -3179,10 +3097,10 @@ test_nested_default(void **state)
     ret = sr_get_data(st->sess, "/defaults:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<l1 xmlns=\"urn:defaults\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"unknown\">"
@@ -3231,10 +3149,10 @@ test_disabled_default(void **state)
     ret = sr_get_data(st->sess, "/defaults:*", 0, 0, SR_OPER_WITH_ORIGIN, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<pcont xmlns=\"urn:defaults\" xmlns:or=\"urn:ietf:params:xml:ns:yang:ietf-origin\" or:origin=\"intended\">"
@@ -3254,8 +3172,6 @@ static int
 merge_flag_oper_cb(sr_session_ctx_t *session, const char *module_name, const char *xpath, const char *request_xpath,
         uint32_t request_id, struct lyd_node **parent, void *private_data)
 {
-    struct lyd_node *node;
-
     (void)session;
     (void)request_id;
     (void)private_data;
@@ -3265,18 +3181,17 @@ merge_flag_oper_cb(sr_session_ctx_t *session, const char *module_name, const cha
     assert_string_equal(request_xpath, "/ietf-interfaces:*");
 
     /* create new interface */
-    node = lyd_new_path(*parent, NULL, "interface[name='eth3']/type", "iana-if-type:softwareLoopback", 0, 0);
-    assert_non_null(node);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "interface[name='eth3']/type", "iana-if-type:softwareLoopback",
+            0, NULL));
 
     /* add node into an interface */
-    node = lyd_new_path(*parent, NULL, "interface[name='eth1']/description", "operational-desc", 0, 0);
-    assert_non_null(node);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "interface[name='eth1']/description", "operational-desc",
+            0, NULL));
 
     /* change nodes in an interface */
-    node = lyd_new_path(*parent, NULL, "interface[name='eth2']/enabled", "true", 0, 0);
-    assert_non_null(node);
-    node = lyd_new_path(*parent, NULL, "interface[name='eth2']/type", "iana-if-type:frameRelay", 0, 0);
-    assert_non_null(node);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "interface[name='eth2']/enabled", "true", 0, NULL));
+    assert_int_equal(LY_SUCCESS, lyd_new_path(*parent, NULL, "interface[name='eth2']/type", "iana-if-type:frameRelay",
+            0, NULL));
 
     return SR_ERR_OK;
 }
@@ -3321,10 +3236,10 @@ test_merge_flag(void **state)
     ret = sr_get_data(st->sess, "/ietf-interfaces:*", 0, 0, 0, &data);
     assert_int_equal(ret, SR_ERR_OK);
 
-    ret = lyd_print_mem(&str1, data, LYD_XML, LYP_WITHSIBLINGS);
+    ret = lyd_print_mem(&str1, data, LYD_XML, LYD_PRINT_WITHSIBLINGS);
     assert_int_equal(ret, 0);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     str2 =
     "<interfaces xmlns=\"urn:ietf:params:xml:ns:yang:ietf-interfaces\">"
@@ -3355,7 +3270,7 @@ main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_yang_lib),
-        cmocka_unit_test(test_sr_mon),
+        //cmocka_unit_test(test_sr_mon),
         cmocka_unit_test_teardown(test_enabled_partial, clear_up),
         cmocka_unit_test_teardown(test_simple, clear_up),
         cmocka_unit_test_teardown(test_fail, clear_up),

@@ -59,13 +59,13 @@ setup(void **state, int cached)
         return 1;
     }
 
-    if (sr_install_module(st->conn, TESTS_DIR "/files/simple.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/simple.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/simple-aug.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/simple-aug.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/defaults.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/defaults.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
     sr_disconnect(st->conn);
@@ -120,7 +120,7 @@ test_cached_datastore(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_non_null(data);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* try to get STARTUP data */
     ret = sr_session_switch_ds(st->sess, SR_DS_STARTUP);
@@ -129,7 +129,7 @@ test_cached_datastore(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_non_null(data);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* try to get CANDIDATE data */
     ret = sr_session_switch_ds(st->sess, SR_DS_CANDIDATE);
@@ -138,7 +138,7 @@ test_cached_datastore(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_non_null(data);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* try to get OPERATIONAL data */
     ret = sr_session_switch_ds(st->sess, SR_DS_OPERATIONAL);
@@ -147,7 +147,7 @@ test_cached_datastore(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_non_null(data);
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* switch DS back */
     ret = sr_session_switch_ds(st->sess, SR_DS_RUNNING);
@@ -229,8 +229,8 @@ test_no_read_access(void **state)
 
     /* only some default values */
     assert_non_null(data);
-    assert_int_equal(data->dflt, 1);
-    lyd_free_withsiblings(data);
+    assert_true(data->flags & LYD_DEFAULT);
+    lyd_free_all(data);
 
     /* set permissions back so that it can be removed */
     ret = sr_set_module_access(st->conn, "defaults", NULL, NULL, 00600);
@@ -251,12 +251,12 @@ test_explicit_default(void **state)
 
     assert_non_null(data);
     assert_string_equal(data->schema->name, "cont");
-    assert_int_equal(data->dflt, 1);
-    assert_non_null(data->child);
-    assert_string_equal(data->child->schema->name, "interval");
-    assert_int_equal(data->child->dflt, 1);
+    assert_true(data->flags & LYD_DEFAULT);
+    assert_non_null(lyd_child(data));
+    assert_string_equal(lyd_child(data)->schema->name, "interval");
+    assert_true(lyd_child(data)->flags & LYD_DEFAULT);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* set explicit default value */
     ret = sr_set_item_str(st->sess, "/defaults:cont/interval", "30", NULL, 0);
@@ -270,12 +270,12 @@ test_explicit_default(void **state)
 
     assert_non_null(data);
     assert_string_equal(data->schema->name, "cont");
-    assert_int_equal(data->dflt, 0);
-    assert_non_null(data->child);
-    assert_string_equal(data->child->schema->name, "interval");
-    assert_int_equal(data->child->dflt, 0);
+    assert_false(data->flags & LYD_DEFAULT);
+    assert_non_null(lyd_child(data));
+    assert_string_equal(lyd_child(data)->schema->name, "interval");
+    assert_false(lyd_child(data)->flags & LYD_DEFAULT);
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 
     /* cleanup */
     sr_delete_item(st->sess, "/defaults:cont", 0);

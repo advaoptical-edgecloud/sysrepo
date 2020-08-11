@@ -57,10 +57,10 @@ setup_f(void **state)
         return 1;
     }
 
-    if (sr_install_module(st->conn, TESTS_DIR "/files/test.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/test.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/refs.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/refs.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
     sr_disconnect(st->conn);
@@ -144,12 +144,12 @@ test_leafref(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     assert_string_equal(data->schema->name, "lref");
-    assert_string_equal(((struct lyd_node_leaf_list *)data)->value_str, "10");
+    assert_string_equal(LYD_CANON_VALUE(data), "10");
     assert_string_equal(data->next->schema->name, "cont");
     assert_string_equal(data->next->next->schema->name, "test-leaf");
-    assert_string_equal(((struct lyd_node_leaf_list *)data->next->next)->value_str, "10");
+    assert_string_equal(LYD_CANON_VALUE(data->next->next), "10");
 
-    lyd_free_withsiblings(data);
+    lyd_free_all(data);
 }
 
 static void
@@ -232,11 +232,10 @@ test_operational(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     /* parse it with default values, which are invalid */
-    edit = lyd_parse_mem((struct ly_ctx *)sr_get_context(st->conn), data, LYD_JSON, LYD_OPT_DATA_NO_YANGLIB);
-    assert_non_null(edit);
+    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(sr_get_context(st->conn), data, LYD_JSON, 0, LYD_VALIDATE_PRESENT, &edit));
 
     ret = sr_edit_batch(st->sess, edit, "replace");
-    lyd_free_withsiblings(edit);
+    lyd_free_all(edit);
     assert_int_equal(ret, SR_ERR_OK);
 
     /* validate operational with an invalid change */
@@ -251,11 +250,11 @@ test_operational(void **state)
     assert_int_equal(ret, SR_ERR_OK);
 
     /* parse it properly now */
-    edit = lyd_parse_mem((struct ly_ctx *)sr_get_context(st->conn), data, LYD_JSON, LYD_OPT_EDIT);
-    assert_non_null(edit);
+    assert_int_equal(LY_SUCCESS, lyd_parse_data_mem(sr_get_context(st->conn), data, LYD_JSON,
+            LYD_PARSE_ONLY | LYD_PARSE_OPAQ, 0, &edit));
 
     ret = sr_edit_batch(st->sess, edit, "replace");
-    lyd_free_withsiblings(edit);
+    lyd_free_all(edit);
     assert_int_equal(ret, SR_ERR_OK);
 
     /* validate operational, should be fine now */

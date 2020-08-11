@@ -66,7 +66,7 @@ setup(void **state)
 {
     struct state *st;
     uint32_t conn_count;
-    const char *ops_ref_feat = "feat1";
+    const char *ops_ref_feats[] = {"feat1", NULL};
 
     st = calloc(1, sizeof *st);
     *state = st;
@@ -78,19 +78,19 @@ setup(void **state)
         return 1;
     }
 
-    if (sr_install_module(st->conn, TESTS_DIR "/files/test.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/test.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-interfaces.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ietf-interfaces.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/iana-if-type.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/iana-if-type.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ops-ref.yang", TESTS_DIR "/files", &ops_ref_feat, 1) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ops-ref.yang", TESTS_DIR "/files", ops_ref_feats) != SR_ERR_OK) {
         return 1;
     }
-    if (sr_install_module(st->conn, TESTS_DIR "/files/ops.yang", TESTS_DIR "/files", NULL, 0) != SR_ERR_OK) {
+    if (sr_install_module(st->conn, TESTS_DIR "/files/ops.yang", TESTS_DIR "/files", NULL) != SR_ERR_OK) {
         return 1;
     }
     sr_disconnect(st->conn);
@@ -167,17 +167,16 @@ store_notif(int fd, const struct ly_ctx *ly_ctx, const char *notif_xpath, off_t 
     struct lyd_node *notif;
     time_t notif_ts;
 
-    notif = lyd_new_path(NULL, ly_ctx, notif_xpath, NULL, 0, 0);
-    if (!notif) {
+    if (lyd_new_path(NULL, ly_ctx, notif_xpath, NULL, 0, &notif)) {
         return 1;
     }
-    lyd_print_mem(&notif_lyb, notif, LYD_LYB, LYP_WITHSIBLINGS);
+    lyd_print_mem(&notif_lyb, notif, LYD_LYB, LYD_PRINT_WITHSIBLINGS);
     notif_lyb_len = lyd_lyb_data_length(notif_lyb);
     notif_ts = start_ts + ts_offset;
     write(fd, &notif_ts, sizeof notif_ts);
     write(fd, &notif_lyb_len, sizeof notif_lyb_len);
     write(fd, notif_lyb, notif_lyb_len);
-    lyd_free_withsiblings(notif);
+    lyd_free_all(notif);
     free(notif_lyb);
 
     return 0;
@@ -316,24 +315,22 @@ test_input_parameters(void **state)
     assert_int_equal(ret, SR_ERR_INVAL_ARG);
 
     /* data tree must be created with the session connection libyang context */
-    struct ly_ctx *ctx = ly_ctx_new(TESTS_DIR"/files/", 0);
-    assert_non_null(ctx);
-    const struct lys_module *mod = lys_parse_path(ctx, TESTS_DIR"/files/simple.yang", LYS_IN_YANG);
-    assert_non_null(mod);
-    input = lyd_new_path(NULL, ctx, "/simple:ac1", NULL, 0, LYD_PATH_OPT_NOPARENTRET);
-    assert_non_null(input);
+    struct ly_ctx *ctx;
+    assert_int_equal(LY_SUCCESS, ly_ctx_new(TESTS_DIR"/files/", 0, &ctx));
+    const struct lys_module *mod;
+    assert_int_equal(LY_SUCCESS, lys_parse_path(ctx, TESTS_DIR"/files/simple.yang", LYS_IN_YANG, &mod));
+    assert_int_equal(LY_SUCCESS, lyd_new_path2(NULL, ctx, "/simple:ac1", NULL, 0, 0, NULL, &input));
     ret = sr_event_notif_send_tree(st->sess, input);
     assert_int_equal(ret, SR_ERR_INVAL_ARG);
-    lyd_free_withsiblings(input);
+    lyd_free_all(input);
     ly_ctx_destroy(ctx, NULL);
 
     /* data tree not a valid notification invovation */
-    input = lyd_new_path(NULL, sr_get_context(st->conn), "/ops:cont/list1[k='key']/cont2", NULL, 0, LYD_PATH_OPT_NOPARENTRET);
-    assert_non_null(input);
+    assert_int_equal(LY_SUCCESS, lyd_new_path2(NULL, sr_get_context(st->conn), "/ops:cont/list1[k='key']/cont2", NULL,
+            0, 0, NULL, &input));
     ret = sr_event_notif_send_tree(st->sess, input);
     assert_int_equal(ret, SR_ERR_INVAL_ARG);
-    for ( ; input->parent; input = input->parent);
-    lyd_free_withsiblings(input);
+    lyd_free_all(input);
 
     sr_unsubscribe(subscr);
 }
@@ -594,15 +591,14 @@ test_replay_simple(void **state)
     /*
      * create the notification
      */
-    notif = lyd_new_path(NULL, sr_get_context(st->conn), "/ops:notif3/list2[k='k']", NULL, 0, 0);
-    assert_non_null(notif);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, sr_get_context(st->conn), "/ops:notif3/list2[k='k']", NULL, 0, &notif));
 
     /* remember current time */
     cur_ts = time(NULL);
 
     /* send the notification, it should be stored for replay */
     ret = sr_event_notif_send_tree(st->sess, notif);
-    lyd_free_withsiblings(notif);
+    lyd_free_all(notif);
     assert_int_equal(ret, SR_ERR_OK);
 
     /* now subscribe and expect the notification replayed */
@@ -633,42 +629,42 @@ notif_replay_interval_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t not
     case 0:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "3");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "3");
         break;
     case 1:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "4");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "4");
         break;
     case 2:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "5");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "5");
         break;
     case 3:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "6");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "6");
         break;
     case 4:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "7");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "7");
         break;
     case 5:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "8");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "8");
         break;
     case 6:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "9");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "9");
         break;
     case 7:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "10");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "10");
         break;
     case 8:
         assert_int_equal(notif_type, SR_EV_NOTIF_STOP);
@@ -677,17 +673,17 @@ notif_replay_interval_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t not
     case 9:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "1");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "1");
         break;
     case 10:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "2");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "2");
         break;
     case 11:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "3");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "3");
         break;
     case 12:
         assert_int_equal(notif_type, SR_EV_NOTIF_STOP);
@@ -696,32 +692,32 @@ notif_replay_interval_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t not
     case 13:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "6");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "6");
         break;
     case 14:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "7");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "7");
         break;
     case 15:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "8");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "8");
         break;
     case 16:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "9");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "9");
         break;
     case 17:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "10");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "10");
         break;
     case 18:
         assert_int_equal(notif_type, SR_EV_NOTIF_REPLAY);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "11");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "11");
         break;
     case 19:
         assert_int_equal(notif_type, SR_EV_NOTIF_STOP);
@@ -799,7 +795,7 @@ notif_no_replay_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t notif_typ
     case 1:
         assert_int_equal(notif_type, SR_EV_NOTIF_REALTIME);
         assert_non_null(notif);
-        assert_string_equal(((struct lyd_node_leaf_list *)notif->child->child)->value_str, "key");
+        assert_string_equal(LYD_CANON_VALUE(lyd_child(lyd_child(notif))), "key");
         break;
     default:
         fail();
@@ -833,8 +829,7 @@ test_no_replay(void **state)
     /*
      * create the notification
      */
-    notif = lyd_new_path(NULL, sr_get_context(st->conn), "/ops:notif3/list2[k='key']", NULL, 0, 0);
-    assert_non_null(notif);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, sr_get_context(st->conn), "/ops:notif3/list2[k='key']", NULL, 0, &notif));
 
     /* subscribe and expect no notifications replayed */
     ret = sr_event_notif_subscribe_tree(st->sess, "ops", NULL, time(NULL) - 50, 0, notif_no_replay_cb, st,
@@ -847,7 +842,7 @@ test_no_replay(void **state)
 
     /* send the realtime notification */
     ret = sr_event_notif_send_tree(st->sess, notif);
-    lyd_free_withsiblings(notif);
+    lyd_free_all(notif);
     assert_int_equal(ret, SR_ERR_OK);
 
     /* wait for the realtime notification */
@@ -869,13 +864,13 @@ notif_config_change_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t notif
     assert_int_equal(notif_type, SR_EV_NOTIF_REALTIME);
     assert_non_null(notif);
     assert_string_equal(notif->schema->name, "netconf-config-change");
-    assert_string_equal(notif->child->schema->name, "changed-by");
+    assert_string_equal(lyd_child(notif)->schema->name, "changed-by");
     (void)session;
     (void)timestamp;
 
     switch (st->cb_called) {
     case 0:
-        lyd_print_mem(&str1, notif->child->next, LYD_XML, LYP_WITHSIBLINGS);
+        lyd_print_mem(&str1, lyd_child(notif)->next, LYD_XML, LYD_PRINT_WITHSIBLINGS);
         str2 =
         "<datastore xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">running</datastore>"
         "<edit xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">"
@@ -895,7 +890,7 @@ notif_config_change_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t notif
         free(str1);
         break;
     case 1:
-        lyd_print_mem(&str1, notif->child->next, LYD_XML, LYP_WITHSIBLINGS);
+        lyd_print_mem(&str1, lyd_child(notif)->next, LYD_XML, LYD_PRINT_WITHSIBLINGS);
         str2 =
         "<datastore xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">running</datastore>"
         "<edit xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">"
@@ -931,7 +926,7 @@ notif_config_change_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t notif
         free(str1);
         break;
     case 2:
-        lyd_print_mem(&str1, notif->child->next, LYD_XML, LYP_WITHSIBLINGS);
+        lyd_print_mem(&str1, lyd_child(notif)->next, LYD_XML, LYD_PRINT_WITHSIBLINGS);
         str2 =
         "<datastore xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">running</datastore>"
         "<edit xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">"
@@ -947,7 +942,7 @@ notif_config_change_cb(sr_session_ctx_t *session, const sr_ev_notif_type_t notif
         free(str1);
         break;
     case 3:
-        lyd_print_mem(&str1, notif->child->next, LYD_XML, LYP_WITHSIBLINGS);
+        lyd_print_mem(&str1, lyd_child(notif)->next, LYD_XML, LYD_PRINT_WITHSIBLINGS);
         str2 =
         "<datastore xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">running</datastore>"
         "<edit xmlns=\"urn:ietf:params:xml:ns:yang:ietf-netconf-notifications\">"
@@ -1064,8 +1059,7 @@ test_notif_buffer(void **state)
     ret = sr_session_notif_buffer(st->sess);
     assert_int_equal(ret, SR_ERR_OK);
 
-    notif = lyd_new_path(NULL, ly_ctx, "/ops:notif4", NULL, 0, 0);
-    assert_non_null(notif);
+    assert_int_equal(LY_SUCCESS, lyd_new_path(NULL, ly_ctx, "/ops:notif4", NULL, 0, &notif));
 
     /* send first notification */
     ret = sr_event_notif_send_tree(st->sess, notif);
@@ -1084,7 +1078,7 @@ test_notif_buffer(void **state)
         assert_int_equal(ret, SR_ERR_OK);
     }
 
-    lyd_free_withsiblings(notif);
+    lyd_free_all(notif);
 }
 
 /* TEST */
